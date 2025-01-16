@@ -11,17 +11,23 @@ const DashboardPage = () => {
   const [error, setError] = useState("");
   const [amount, setAmount] = useState("");
   const [creatingTransaction, setCreatingTransaction] = useState(false); // Track the transaction creation state
+  const [username, setUsername] = useState(null); // Store username from localStorage
   const router = useRouter();
-  const user = localStorage.getItem("username");
 
-  // Function to fetch user data from backend
+  // Fetch user data from backend
   const fetchUserData = async () => {
     try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        router.push("/login");
+        return;
+      }
+
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/users/${user}`,
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/users/${username}`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${token}`,
           },
         }
       );
@@ -41,54 +47,64 @@ const DashboardPage = () => {
     }
   };
 
+  // Use effect to safely access localStorage
   useEffect(() => {
-    // Redirect to login if no token is found
-    if (!localStorage.getItem("token")) {
+    const storedUsername = localStorage.getItem("username");
+    const token = localStorage.getItem("token");
+
+    if (!token) {
       router.push("/login");
-    } else {
-      fetchUserData(); // Fetch user data if token exists
+      return;
     }
-  }, [user, router]);
+
+    setUsername(storedUsername); // Set username for API calls
+  }, [router]);
+
+  useEffect(() => {
+    if (username) {
+      fetchUserData(); // Fetch user data when username is available
+    }
+  }, [username]);
 
   const handleLogout = () => {
     logout(); // Logout function
   };
 
-  // Function to create a new transaction
   const handleCreateTransaction = async () => {
     if (!amount) {
       setError("Amount cannot be empty!");
       return;
     }
 
-    setCreatingTransaction(true); // Set creating transaction state to true
+    setCreatingTransaction(true);
     try {
+      const token = localStorage.getItem("token");
+
       const response = await axios.post(
         `${process.env.NEXT_PUBLIC_API_BASE_URL}/transactions/create`,
         {
           userId: userData.id,
-          amount, // Only send amount, backend will handle the "pending" status
+          amount,
         },
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${token}`,
           },
         }
       );
 
       if (response.status === 201) {
-        // Update the transaction list with new transaction
         setUserData({
           ...userData,
           transactions: [...userData.transactions, response.data],
         });
-        setAmount(""); // Reset the amount input
+        setAmount("");
         alert("Transaction created successfully!");
       }
     } catch (err) {
       setError("Failed to create transaction.");
     } finally {
-      setCreatingTransaction(false); // Set creating transaction state back to false
+      setCreatingTransaction(false);
     }
   };
 
@@ -120,7 +136,6 @@ const DashboardPage = () => {
             </p>
           </div>
 
-          {/* Create Transaction Form */}
           <div className="mt-6">
             <h3 className="text-xl font-bold text-gray-700">
               Create Transaction
