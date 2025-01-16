@@ -158,23 +158,25 @@ const DashboardPage = () => {
             </div>
           </div>
 
-          <div className="mt-6">
+          <div className="mt-6 ">
             <h3 className="text-xl font-bold text-gray-700">Transactions</h3>
-            <div className="mt-4">
+            <div className="mt-4 max-h-[400px] overflow-y-auto">
               {userData?.transactions?.length > 0 ? (
-                userData.transactions.map((transaction) => (
-                  <div
-                    key={transaction.id}
-                    className="mt-2 p-4 border rounded-lg"
-                  >
-                    <p className="text-lg font-medium text-gray-700">
-                      Amount: {transaction.amount}
-                    </p>
-                    <p className="text-lg font-medium text-gray-700">
-                      Status: {transaction.status}
-                    </p>
-                  </div>
-                ))
+                userData.transactions
+                  .sort((a, b) => b.id - a.id)
+                  .map((transaction) => (
+                    <div
+                      key={transaction.id}
+                      className="mt-2 p-4 border rounded-lg"
+                    >
+                      <p className="text-lg font-medium text-gray-700">
+                        Amount: {transaction.amount}
+                      </p>
+                      <p className="text-lg font-medium text-gray-700">
+                        Status: {transaction.status}
+                      </p>
+                    </div>
+                  ))
               ) : (
                 <p className="text-gray-500">No transactions available.</p>
               )}

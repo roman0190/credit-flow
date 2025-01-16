@@ -10,17 +10,22 @@ const AdminDashboard = () => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [approvingId, setApprovingId] = useState(null);
+  const [rejectingId, setRejectingId] = useState(null);
   const router = useRouter();
 
   // Fetch user data and validate if admin
   const fetchUserData = async () => {
     try {
       const user = localStorage.getItem("username");
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/users/${user}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
+      const response = await axios.get(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/users/${user}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
 
       if (response.status === 200) {
         setUserData(response.data);
@@ -36,11 +41,14 @@ const AdminDashboard = () => {
   // Fetch all transactions
   const fetchTransactions = async () => {
     try {
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/transactions`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
+      const response = await axios.get(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/transactions`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
 
       if (response.status === 200) {
         setTransactions(response.data);
@@ -52,7 +60,7 @@ const AdminDashboard = () => {
     }
   };
 
-  // Fetch the necessary data on component mount
+  // Fetch data on component mount
   useEffect(() => {
     if (!localStorage.getItem("token")) {
       router.push("/login");
@@ -69,6 +77,7 @@ const AdminDashboard = () => {
 
   // Approve a transaction
   const approveTransaction = async (transactionId) => {
+    setApprovingId(transactionId);
     try {
       const response = await axios.post(
         `${process.env.NEXT_PUBLIC_API_BASE_URL}/transactions/approve/${transactionId}`,
@@ -80,22 +89,20 @@ const AdminDashboard = () => {
         }
       );
 
-      if (response.status === 200) {
-        const updatedTransactions = transactions.map((transaction) => {
-          if (transaction.id === transactionId) {
-            transaction.status = "approved";
-          }
-          return transaction;
-        });
-        setTransactions(updatedTransactions);
+      if (response.status === 201) {
+        // Remove the transaction from the pending list
+        setTransactions((prev) => prev.filter((t) => t.id !== transactionId));
       }
     } catch (err) {
       setError("Failed to approve transaction.");
+    } finally {
+      setApprovingId(null);
     }
   };
 
   // Reject a transaction
   const rejectTransaction = async (transactionId) => {
+    setRejectingId(transactionId);
     try {
       const response = await axios.post(
         `${process.env.NEXT_PUBLIC_API_BASE_URL}/transactions/reject/${transactionId}`,
@@ -107,17 +114,14 @@ const AdminDashboard = () => {
         }
       );
 
-      if (response.status === 200) {
-        const updatedTransactions = transactions.map((transaction) => {
-          if (transaction.id === transactionId) {
-            transaction.status = "rejected";
-          }
-          return transaction;
-        });
-        setTransactions(updatedTransactions);
+      if (response.status === 201) {
+        // Remove the transaction from the pending list
+        setTransactions((prev) => prev.filter((t) => t.id !== transactionId));
       }
     } catch (err) {
       setError("Failed to reject transaction.");
+    } finally {
+      setRejectingId(null);
     }
   };
 
@@ -153,11 +157,13 @@ const AdminDashboard = () => {
 
         {/* Transactions List */}
         <div className="mt-6 space-y-4">
-          <h3 className="text-xl font-bold text-gray-700">Pending Transactions</h3>
+          <h3 className="text-xl font-bold text-gray-700">
+            Pending Transactions
+          </h3>
           <div className="mt-4">
-            {transactions.filter((transaction) => transaction.status === "pending").length > 0 ? (
+            {transactions.filter((t) => t.status === "pending").length > 0 ? (
               transactions
-                .filter((transaction) => transaction.status === "pending")
+                .filter((t) => t.status === "pending")
                 .map((transaction) => (
                   <div
                     key={transaction.id}
@@ -166,7 +172,9 @@ const AdminDashboard = () => {
                     <h4 className="text-lg font-medium text-gray-700">
                       Transaction ID: {transaction.id}
                     </h4>
-                    <p className="text-gray-500">Amount: {transaction.amount}</p>
+                    <p className="text-gray-500">
+                      Amount: {transaction.amount}
+                    </p>
                     <p className="text-lg text-yellow-500">
                       Status: {transaction.status}
                     </p>
@@ -176,20 +184,34 @@ const AdminDashboard = () => {
                       <button
                         onClick={() => approveTransaction(transaction.id)}
                         className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none"
+                        disabled={
+                          approvingId === transaction.id ||
+                          rejectingId === transaction.id
+                        }
                       >
-                        Approve
+                        {approvingId === transaction.id
+                          ? "Processing..."
+                          : "Approve"}
                       </button>
                       <button
                         onClick={() => rejectTransaction(transaction.id)}
                         className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none"
+                        disabled={
+                          approvingId === transaction.id ||
+                          rejectingId === transaction.id
+                        }
                       >
-                        Reject
+                        {rejectingId === transaction.id
+                          ? "Processing..."
+                          : "Reject"}
                       </button>
                     </div>
                   </div>
                 ))
             ) : (
-              <p className="text-gray-500">No pending transactions available.</p>
+              <p className="text-gray-500">
+                No pending transactions available.
+              </p>
             )}
           </div>
         </div>
